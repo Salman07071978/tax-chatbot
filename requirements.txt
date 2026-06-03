@@ -1,2 +1,6 @@
 streamlit
 pypdf
+sentence-transformers
+faiss-cpu
+transformers
+torch
