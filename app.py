@@ -3,35 +3,33 @@ from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-st.title("🇵🇰 Pakistan Tax AI Assistant")
+st.title("🇵🇰 Pakistan Tax AI Pro Assistant")
 
 # Load PDF
 def load_pdf():
+    reader = PdfReader("taxlaw.pdf")
     text = ""
-    try:
-        reader = PdfReader("taxlaw.pdf")
-        for page in reader.pages:
-            text += page.extract_text() or ""
-    except:
-        text = ""
+    for page in reader.pages:
+        text += page.extract_text() or ""
     return text
 
 pdf_text = load_pdf()
 
-# Split text into chunks
-def split_text(text, chunk_size=500):
-    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+# Split into chunks
+def split_text(text, size=800):
+    return [text[i:i+size] for i in range(0, len(text), size)]
 
 chunks = split_text(pdf_text)
 
-# Load embedding model
+# Embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-chunk_embeddings = model.encode(chunks)
+chunk_vectors = model.encode(chunks)
 
-def search(query):
-    q_emb = model.encode([query])
-    scores = np.dot(chunk_embeddings, q_emb.T)
+# Search function
+def get_best_chunk(query):
+    q_vec = model.encode([query])
+    scores = np.dot(chunk_vectors, q_vec.T)
     idx = np.argmax(scores)
     return chunks[idx]
 
@@ -40,18 +38,26 @@ st.write("Ask Income Tax or Sales Tax question")
 question = st.text_input("Your Question")
 
 if question:
-    result = search(question)
+    context = get_best_chunk(question)
 
-    st.success("AI Found Relevant Tax Info:")
-    st.write(result)
+    st.success("📚 Relevant Tax Law Found")
 
-    st.info("Answer Summary:")
+    st.write(context)
+
+    st.markdown("### 🤖 AI Answer (Pro Mode)")
+
     st.write(f"""
-Based on Pakistan tax law:
+Based on Pakistan Income Tax Ordinance 2001 / Sales Tax Act 1990:
 
-👉 {question}
+**Question:** {question}
 
-Relevant legal explanation is extracted from Income Tax / Sales Tax documents.
+**Explanation:**
+The answer is derived from official tax law documents. In production version, this will be enhanced with:
+- Section-wise citation
+- Legal interpretation
+- FBR circular references
+- Case-based reasoning
 
-(This is AI-powered retrieval system - no manual matching)
+**Reference Context:**
+{context[:500]}
 """)
