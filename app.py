@@ -1,39 +1,51 @@
 import streamlit as st
 from pypdf import PdfReader
 
-st.title("🇵🇰 Pakistan Tax AI Chatbot")
+st.title("🇵🇰 Pakistan Tax Smart Assistant")
 
 # Load PDF
-def load_pdf():
-    text = ""
-    reader = PdfReader("taxlaw.pdf")  # optional file
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text
-    return text
+def get_text():
+    try:
+        reader = PdfReader("taxlaw.pdf")
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() or ""
+        return text
+    except:
+        return ""
 
-try:
-    pdf_text = load_pdf()
-except:
-    pdf_text = ""
+pdf_text = get_text()
 
-st.write("Ask Income Tax or Sales Tax questions")
+st.write("Ask Income Tax or Sales Tax question")
 
 question = st.text_input("Your Question")
 
 if question:
-    question_lower = question.lower()
+    q = question.lower()
 
-    if pdf_text and question_lower in pdf_text.lower():
-        st.success("Found in Tax Law:")
-        st.write(pdf_text[:1500])
-    else:
-        st.info("Basic response (AI mode):")
-        st.write(f"""
-        You asked: {question}
+    # Simple smart search (keyword match)
+    if pdf_text:
+        if q in pdf_text.lower():
+            st.success("Relevant Tax Law Found:")
+            
+            # show small relevant chunk
+            index = pdf_text.lower().find(q)
+            start = max(0, index - 200)
+            end = index + 800
 
-        This is a tax-related query. In future upgrade, this bot will
-        answer using Income Tax Ordinance 2001 and Sales Tax Act 1990
-        with proper section references.
-        """)
+            st.write(pdf_text[start:end])
+        else:
+            st.info("AI Explanation Mode:")
+            st.write(f"""
+**Question:** {question}
+
+This is a tax-related query under Pakistan Income Tax / Sales Tax laws.
+
+👉 In real system, this will:
+- Search Income Tax Ordinance 2001
+- Search Sales Tax Act 1990
+- Provide section-wise explanation
+- Give legal references
+
+(Current system is base version)
+""")
