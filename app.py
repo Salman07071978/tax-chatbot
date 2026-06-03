@@ -1,11 +1,14 @@
 import streamlit as st
+import requests
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-st.title("🇵🇰 Pakistan Tax AI Pro Assistant")
+st.set_page_config(page_title="Pakistan Tax AI Brain", layout="wide")
 
-# Load PDF
+st.title("🇵🇰 Pakistan Tax AI Brain")
+
+# ---------------- PDF LOAD ----------------
 def load_pdf():
     reader = PdfReader("taxlaw.pdf")
     text = ""
@@ -15,49 +18,71 @@ def load_pdf():
 
 pdf_text = load_pdf()
 
-# Split into chunks
-def split_text(text, size=800):
+# ---------------- SPLIT TEXT ----------------
+def split_text(text, size=900):
     return [text[i:i+size] for i in range(0, len(text), size)]
 
 chunks = split_text(pdf_text)
 
-# Embedding model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# ---------------- EMBEDDING MODEL ----------------
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+model = load_model()
 
 chunk_vectors = model.encode(chunks)
 
-# Search function
-def get_best_chunk(query):
+# ---------------- SEARCH FUNCTION ----------------
+def get_context(query):
     q_vec = model.encode([query])
     scores = np.dot(chunk_vectors, q_vec.T)
     idx = np.argmax(scores)
     return chunks[idx]
 
-st.write("Ask Income Tax or Sales Tax question")
+# ---------------- AI (HUGGINGFACE BRAIN) ----------------
+HF_API_KEY = st.secrets["HF_API_KEY"]
 
-question = st.text_input("Your Question")
+def ai_answer(question, context):
+    prompt = f"""
+You are a Pakistan Tax Expert.
+
+Use the context below to answer.
+
+Context:
+{context}
+
+Question:
+{question}
+
+Give a simple legal explanation with section reference.
+"""
+
+    response = requests.post(
+        "https://api-inference.huggingface.co/models/google/flan-t5-large",
+        headers={"Authorization": f"Bearer {HF_API_KEY}"},
+        json={"inputs": prompt}
+    )
+
+    try:
+        return response.json()[0]["generated_text"]
+    except:
+        return "AI is busy. Try again."
+
+# ---------------- UI ----------------
+question = st.text_input("Ask Income Tax or Sales Tax Question")
 
 if question:
-    context = get_best_chunk(question)
 
-    st.success("📚 Relevant Tax Law Found")
+    with st.spinner("Reading Tax Laws..."):
+        context = get_context(question)
 
+    st.success("Relevant Law Found")
+
+    st.markdown("### 📚 Legal Context")
     st.write(context)
 
-    st.markdown("### 🤖 AI Answer (Pro Mode)")
+    st.markdown("### 🧠 AI Answer")
 
-    st.write(f"""
-Based on Pakistan Income Tax Ordinance 2001 / Sales Tax Act 1990:
-
-**Question:** {question}
-
-**Explanation:**
-The answer is derived from official tax law documents. In production version, this will be enhanced with:
-- Section-wise citation
-- Legal interpretation
-- FBR circular references
-- Case-based reasoning
-
-**Reference Context:**
-{context[:500]}
-""")
+    answer = ai_answer(question, context)
+    st.write(answer)
