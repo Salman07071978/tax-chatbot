@@ -41,6 +41,8 @@ def get_context(query):
     return chunks[idx]
 
 # ---------------- AI (HUGGINGFACE BRAIN) ----------------
+import streamlit as st
+
 HF_API_KEY = st.secrets["HF_API_KEY"]
 
 def ai_answer(question, context):
