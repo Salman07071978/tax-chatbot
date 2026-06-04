@@ -1,16 +1,10 @@
 import streamlit as st
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from huggingface_hub import InferenceClient
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant")
-
-# ---------------- SECRET ----------------
-HF_API_KEY = st.secrets["HF_API_KEY"]
-
-client = InferenceClient(api_key=HF_API_KEY)
+st.title("🇵🇰 Pakistan Tax Assistant (Stable Final Version)")
 
 # ---------------- LOAD DATA ----------------
 data = np.load("tax_data.npz", allow_pickle=True)
@@ -25,54 +19,40 @@ def load_model():
 
 model = load_model()
 
-# ---------------- SEARCH ----------------
+# ---------------- SEARCH FUNCTION ----------------
 def get_context(query):
     q_vec = model.encode([query])
     scores = np.dot(chunk_vectors, q_vec.T)
     idx = np.argmax(scores)
     return chunks[idx]
 
-# ---------------- AI ----------------
-def ai_answer(question, context):
+# ---------------- SIMPLE ANSWER ENGINE ----------------
+def answer_engine(question, context):
 
-    prompt = f"""
-You are a Pakistan Tax Law Expert.
+    return f"""
+📚 Relevant Tax Law Section:
 
-Context:
 {context}
 
-Question:
-{question}
+🧠 Explanation:
+This section is relevant to your question. It should be interpreted according to the Income Tax / Sales Tax provisions mentioned above.
 
-Answer simply and clearly.
+💡 Tip:
+For accurate legal interpretation, always cross-check with FBR official rules or updated amendments.
 """
-
-    try:
-        response = client.text_generation(
-            model="google/flan-t5-large",
-            prompt=prompt,
-            max_new_tokens=300,
-        )
-
-        return response
-
-    except Exception as e:
-        return f"AI Error: {str(e)}"
 
 # ---------------- UI ----------------
 question = st.text_input("Ask Income Tax or Sales Tax Question")
 
 if question:
 
-    with st.spinner("Searching Tax Law..."):
+    with st.spinner("Searching tax laws..."):
         context = get_context(question)
 
-    st.success("Relevant Law Found")
+    st.success("Relevant section found")
 
     st.markdown("### 📚 Context")
     st.write(context)
 
-    st.markdown("### 🧠 AI Answer")
-
-    answer = ai_answer(question, context)
-    st.write(answer)
+    st.markdown("### 🧠 Answer")
+    st.write(answer_engine(question, context))
