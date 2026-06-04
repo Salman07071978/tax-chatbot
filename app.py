@@ -5,7 +5,7 @@ from huggingface_hub import InferenceClient
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (FAST MODE)")
+st.title("🇵🇰 Pakistan Tax AI Assistant (FAST PRO MODE)")
 
 # ---------------- SECRET ----------------
 HF_API_KEY = st.secrets["HF_API_KEY"]
@@ -15,11 +15,13 @@ client = InferenceClient(
     api_key=HF_API_KEY,
 )
 
-# ---------------- LOAD PREBUILT DATA ----------------
-chunks = np.load("chunks.npy", allow_pickle=True)
-chunk_vectors = np.load("embeddings.npy")
+# ---------------- LOAD PREBUILT DATA (.npz) ----------------
+data = np.load("tax_data.npz", allow_pickle=True)
 
-# ---------------- LOAD MODEL (LIGHTWEIGHT) ----------------
+chunks = data["chunks"]
+chunk_vectors = data["embeddings"]
+
+# ---------------- MODEL (FAST + CACHED) ----------------
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
@@ -39,7 +41,7 @@ def ai_answer(question, context):
     prompt = f"""
 You are a Pakistan Tax Expert AI.
 
-Use ONLY the context below.
+Use ONLY the context below to answer.
 
 Context:
 {context}
@@ -47,7 +49,7 @@ Context:
 Question:
 {question}
 
-Give simple explanation with possible tax law reference.
+Give a simple explanation with tax reference if possible.
 """
 
     try:
