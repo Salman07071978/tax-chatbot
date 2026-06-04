@@ -5,12 +5,11 @@ from huggingface_hub import InferenceClient
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (Stable Version)")
+st.title("🇵🇰 Pakistan Tax AI Assistant")
 
 # ---------------- SECRET ----------------
 HF_API_KEY = st.secrets["HF_API_KEY"]
 
-# IMPORTANT: no provider (fix for error)
 client = InferenceClient(api_key=HF_API_KEY)
 
 # ---------------- LOAD DATA ----------------
@@ -33,13 +32,11 @@ def get_context(query):
     idx = np.argmax(scores)
     return chunks[idx]
 
-# ---------------- AI FUNCTION ----------------
+# ---------------- AI ----------------
 def ai_answer(question, context):
 
     prompt = f"""
-You are a Pakistan Tax Law Expert AI.
-
-Use ONLY the context below.
+You are a Pakistan Tax Law Expert.
 
 Context:
 {context}
@@ -47,20 +44,17 @@ Context:
 Question:
 {question}
 
-Give simple, clear explanation.
-Mention law reference if possible.
+Answer simply and clearly.
 """
 
     try:
-        completion = client.chat.completions.create(
-            model="mistralai/Mistral-7B-Instruct-v0.2",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
+        response = client.text_generation(
+            model="google/flan-t5-large",
+            prompt=prompt,
+            max_new_tokens=300,
         )
 
-        return completion.choices[0].message.content
+        return response
 
     except Exception as e:
         return f"AI Error: {str(e)}"
