@@ -1,14 +1,23 @@
 import streamlit as st
-import requests
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from huggingface_hub import InferenceClient
 
-st.set_page_config(page_title="Pakistan Tax AI Brain", layout="wide")
+st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Brain")
+st.title("🇵🇰 Pakistan Tax AI Assistant (Enterprise)")
 
-# ---------------- PDF LOAD ----------------
+# ---------------- LOAD SECRET ----------------
+HF_API_KEY = st.secrets["HF_API_KEY"]
+
+client = InferenceClient(
+    provider="hf-inference",
+    api_key=HF_API_KEY,
+)
+
+# ---------------- LOAD PDF ----------------
+@st.cache_data
 def load_pdf():
     reader = PdfReader("taxlaw.pdf")
     text = ""
@@ -31,7 +40,12 @@ def load_model():
 
 model = load_model()
 
-chunk_vectors = model.encode(chunks)
+# ---------------- VECTOR EMBEDDINGS ----------------
+@st.cache_resource
+def get_embeddings():
+    return model.encode(chunks)
+
+chunk_vectors = get_embeddings()
 
 # ---------------- SEARCH FUNCTION ----------------
 def get_context(query):
@@ -40,16 +54,13 @@ def get_context(query):
     idx = np.argmax(scores)
     return chunks[idx]
 
-# ---------------- AI (HUGGINGFACE BRAIN) ----------------
-import streamlit as st
-
-HF_API_KEY = st.secrets["HF_API_KEY"]
-
+# ---------------- AI FUNCTION ----------------
 def ai_answer(question, context):
-    prompt = f"""
-You are a Pakistan Tax Expert.
 
-Use the context below to answer.
+    prompt = f"""
+You are a Pakistan Tax Expert AI.
+
+Use ONLY the given context to answer.
 
 Context:
 {context}
@@ -57,31 +68,34 @@ Context:
 Question:
 {question}
 
-Give a simple legal explanation with section reference.
+Give simple, clear explanation with tax law reference if possible.
 """
 
-    response = requests.post(
-        "https://api-inference.huggingface.co/models/google/flan-t5-large",
-        headers={"Authorization": f"Bearer {HF_API_KEY}"},
-        json={"inputs": prompt}
-    )
-
     try:
-        return response.json()[0]["generated_text"]
-    except:
-        return "AI is busy. Try again."
+        completion = client.chat.completions.create(
+            model="Qwen/Qwen2.5-7B-Instruct",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
+        )
+
+        return completion.choices[0].message.content
+
+    except Exception as e:
+        return f"AI Error: {str(e)}"
 
 # ---------------- UI ----------------
 question = st.text_input("Ask Income Tax or Sales Tax Question")
 
 if question:
 
-    with st.spinner("Reading Tax Laws..."):
+    with st.spinner("Analyzing Tax Law..."):
         context = get_context(question)
 
     st.success("Relevant Law Found")
 
-    st.markdown("### 📚 Legal Context")
+    st.markdown("### 📚 Context")
     st.write(context)
 
     st.markdown("### 🧠 AI Answer")
