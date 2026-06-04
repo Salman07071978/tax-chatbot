@@ -6,9 +6,9 @@ from huggingface_hub import InferenceClient
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (Enterprise)")
+st.title("🇵🇰 Pakistan Tax AI Assistant (Fast Mode)")
 
-# ---------------- LOAD SECRET ----------------
+# ---------------- SECRET ----------------
 HF_API_KEY = st.secrets["HF_API_KEY"]
 
 client = InferenceClient(
@@ -16,36 +16,36 @@ client = InferenceClient(
     api_key=HF_API_KEY,
 )
 
-# ---------------- LOAD PDF ----------------
+# ---------------- LOAD PDF (FAST LIMITED) ----------------
 @st.cache_data
 def load_pdf():
     reader = PdfReader("taxlaw.pdf")
     text = ""
     for page in reader.pages:
         text += page.extract_text() or ""
-    return text
+    return text[:20000]   # IMPORTANT: limit size for speed
 
 pdf_text = load_pdf()
 
 # ---------------- SPLIT TEXT ----------------
-def split_text(text, size=900):
+def split_text(text, size=800):
     return [text[i:i+size] for i in range(0, len(text), size)]
 
 chunks = split_text(pdf_text)
 
-# ---------------- EMBEDDING MODEL ----------------
+# ---------------- MODEL (CACHED) ----------------
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 model = load_model()
 
-# ---------------- VECTOR EMBEDDINGS ----------------
+# ---------------- EMBEDDINGS (CACHED ONCE) ----------------
 @st.cache_resource
-def get_embeddings():
+def build_embeddings(chunks):
     return model.encode(chunks)
 
-chunk_vectors = get_embeddings()
+chunk_vectors = build_embeddings(chunks)
 
 # ---------------- SEARCH FUNCTION ----------------
 def get_context(query):
@@ -54,13 +54,13 @@ def get_context(query):
     idx = np.argmax(scores)
     return chunks[idx]
 
-# ---------------- AI FUNCTION ----------------
+# ---------------- AI ANSWER ----------------
 def ai_answer(question, context):
 
     prompt = f"""
 You are a Pakistan Tax Expert AI.
 
-Use ONLY the given context to answer.
+Use ONLY the context below.
 
 Context:
 {context}
@@ -68,7 +68,8 @@ Context:
 Question:
 {question}
 
-Give simple, clear explanation with tax law reference if possible.
+Give a simple legal explanation.
+Mention tax law reasoning if possible.
 """
 
     try:
@@ -83,14 +84,14 @@ Give simple, clear explanation with tax law reference if possible.
         return completion.choices[0].message.content
 
     except Exception as e:
-        return f"AI Error: {str(e)}"
+        return f"AI Error (try again later): {str(e)}"
 
 # ---------------- UI ----------------
 question = st.text_input("Ask Income Tax or Sales Tax Question")
 
 if question:
 
-    with st.spinner("Analyzing Tax Law..."):
+    with st.spinner("Searching Tax Laws..."):
         context = get_context(question)
 
     st.success("Relevant Law Found")
