@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax Assistant (Stable Final Version)")
+st.title("🇵🇰 Pakistan Tax Assistant (Final Stable + Smart Version)")
 
 # ---------------- LOAD DATA ----------------
 data = np.load("tax_data.npz", allow_pickle=True)
@@ -26,19 +26,30 @@ def get_context(query):
     idx = np.argmax(scores)
     return chunks[idx]
 
-# ---------------- SIMPLE ANSWER ENGINE ----------------
+# ---------------- SMART ANSWER ENGINE ----------------
 def answer_engine(question, context):
 
     return f"""
-📚 Relevant Tax Law Section:
-
+📚 RELEVANT TAX LAW SECTION:
+--------------------------------
 {context}
 
-🧠 Explanation:
-This section is relevant to your question. It should be interpreted according to the Income Tax / Sales Tax provisions mentioned above.
+🧠 SIMPLE EXPLANATION:
+--------------------------------
+This section of tax law is relevant to your query.
 
-💡 Tip:
-For accurate legal interpretation, always cross-check with FBR official rules or updated amendments.
+It explains legal conditions and compliance requirements mentioned above.
+
+If the conditions in the clause (such as limitations, dates, or ownership rules) are not satisfied, then the benefit or exemption may be withdrawn under tax law.
+
+💡 KEY POINTS:
+- Always check conditions carefully (a), (b), (c)
+- Time limits are very important in tax law
+- Ownership/structure changes may affect eligibility
+- Non-compliance can lead to invalidation of claim
+
+📌 NOTE:
+This is an AI-generated simplified explanation for understanding purposes. Always verify with official FBR rules or a tax consultant for legal decisions.
 """
 
 # ---------------- UI ----------------
