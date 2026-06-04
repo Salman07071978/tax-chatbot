@@ -5,30 +5,28 @@ from huggingface_hub import InferenceClient
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (FAST PRO MODE)")
+st.title("🇵🇰 Pakistan Tax AI Assistant (Stable Version)")
 
 # ---------------- SECRET ----------------
 HF_API_KEY = st.secrets["HF_API_KEY"]
 
-client = InferenceClient(
-    provider="hf-inference",
-    api_key=HF_API_KEY,
-)
+# IMPORTANT: no provider (fix for error)
+client = InferenceClient(api_key=HF_API_KEY)
 
-# ---------------- LOAD PREBUILT DATA (.npz) ----------------
+# ---------------- LOAD DATA ----------------
 data = np.load("tax_data.npz", allow_pickle=True)
 
 chunks = data["chunks"]
 chunk_vectors = data["embeddings"]
 
-# ---------------- MODEL (FAST + CACHED) ----------------
+# ---------------- MODEL ----------------
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 model = load_model()
 
-# ---------------- SEARCH FUNCTION ----------------
+# ---------------- SEARCH ----------------
 def get_context(query):
     q_vec = model.encode([query])
     scores = np.dot(chunk_vectors, q_vec.T)
@@ -39,9 +37,9 @@ def get_context(query):
 def ai_answer(question, context):
 
     prompt = f"""
-You are a Pakistan Tax Expert AI.
+You are a Pakistan Tax Law Expert AI.
 
-Use ONLY the context below to answer.
+Use ONLY the context below.
 
 Context:
 {context}
@@ -49,12 +47,13 @@ Context:
 Question:
 {question}
 
-Give a simple explanation with tax reference if possible.
+Give simple, clear explanation.
+Mention law reference if possible.
 """
 
     try:
         completion = client.chat.completions.create(
-            model="Qwen/Qwen2.5-7B-Instruct",
+            model="mistralai/Mistral-7B-Instruct-v0.2",
             messages=[
                 {"role": "user", "content": prompt}
             ],
