@@ -1,6 +1,4 @@
 streamlit
-pypdf
-sentence-transformers
 numpy
-requests
+sentence-transformers
 huggingface_hub
