@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer
 
 st.set_page_config(page_title="Pakistan Tax AI", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax Assistant (Final Stable + Smart Version)")
+st.title("🇵🇰 Pakistan Tax Assistant (Accurate RAG Version)")
 
 # ---------------- LOAD DATA ----------------
 data = np.load("tax_data.npz", allow_pickle=True)
@@ -19,37 +19,53 @@ def load_model():
 
 model = load_model()
 
-# ---------------- SEARCH FUNCTION ----------------
+# ---------------- BETTER SEARCH (TOP 3 RESULTS) ----------------
 def get_context(query):
-    q_vec = model.encode([query])
-    scores = np.dot(chunk_vectors, q_vec.T)
-    idx = np.argmax(scores)
-    return chunks[idx]
+
+    # encode query
+    q_vec = model.encode([query], normalize_embeddings=True)
+
+    # normalize chunk vectors
+    chunk_vecs = model.encode(chunks, normalize_embeddings=True)
+
+    # similarity scores
+    scores = np.dot(chunk_vecs, q_vec.T).flatten()
+
+    # top 3 results
+    top_idx = np.argsort(scores)[-3:][::-1]
+
+    context = ""
+    for i in top_idx:
+        context += chunks[i] + "\n\n"
+
+    return context
 
 # ---------------- SMART ANSWER ENGINE ----------------
 def answer_engine(question, context):
 
     return f"""
-📚 RELEVANT TAX LAW SECTION:
+📚 RELEVANT TAX LAW CONTEXT
 --------------------------------
 {context}
 
-🧠 SIMPLE EXPLANATION:
+🧠 SIMPLE EXPLANATION
 --------------------------------
-This section of tax law is relevant to your query.
+Based on the above legal provisions:
 
-It explains legal conditions and compliance requirements mentioned above.
+✔ This section defines tax conditions, eligibility, or restrictions.
+✔ If any condition (such as ownership, production, or time limit) is violated,
+  then the tax benefit or exemption becomes invalid.
+✔ All clauses must be read together for correct interpretation.
 
-If the conditions in the clause (such as limitations, dates, or ownership rules) are not satisfied, then the benefit or exemption may be withdrawn under tax law.
+💡 KEY UNDERSTANDING POINTS:
+- Tax laws depend on strict conditions (a), (b), (c)
+- Time limits are legally binding (e.g. 30 June 2026 rules)
+- Ownership changes can cancel eligibility
+- Asset disposal can invalidate exemptions
 
-💡 KEY POINTS:
-- Always check conditions carefully (a), (b), (c)
-- Time limits are very important in tax law
-- Ownership/structure changes may affect eligibility
-- Non-compliance can lead to invalidation of claim
-
-📌 NOTE:
-This is an AI-generated simplified explanation for understanding purposes. Always verify with official FBR rules or a tax consultant for legal decisions.
+📌 FINAL NOTE:
+This is a simplified explanation for understanding.
+For legal accuracy, always verify with updated FBR rules or a tax advisor.
 """
 
 # ---------------- UI ----------------
@@ -60,9 +76,9 @@ if question:
     with st.spinner("Searching tax laws..."):
         context = get_context(question)
 
-    st.success("Relevant section found")
+    st.success("Relevant sections found")
 
-    st.markdown("### 📚 Context")
+    st.markdown("### 📚 Context (Top 3 Matches)")
     st.write(context)
 
     st.markdown("### 🧠 Answer")
