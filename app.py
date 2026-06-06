@@ -6,7 +6,7 @@ from groq import Groq
 # ---------------- APP CONFIG ----------------
 st.set_page_config(page_title="Pakistan Tax AI V3", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (V3 - Professional Mode)")
+st.title("🇵🇰 Pakistan Tax AI Assistant (V3 - Stable & Accurate)")
 
 # ---------------- LOAD DATA ----------------
 @st.cache_resource
@@ -24,43 +24,44 @@ def load_model():
 model = load_model()
 
 # ---------------- GROQ CLIENT ----------------
-client = Groq(
-    api_key=st.secrets["GROQ_API_KEY"]
-)
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# ---------------- HYBRID SEARCH (FIXED) ----------------
+# ---------------- HYBRID SEARCH + CONFIDENCE ----------------
 def get_context(query, top_k=5):
 
     query_lower = query.lower()
 
-    # semantic search
     q_vec = model.encode([query], normalize_embeddings=True)
     sem_scores = np.dot(chunk_vectors, q_vec.T).flatten()
 
-    # keyword boost
     keyword_scores = []
 
     for chunk in chunks:
         score = 0
         chunk_lower = chunk.lower()
 
-        # direct match
+        # direct match boost
         if query_lower in chunk_lower:
-            score += 20
+            score += 30
 
-        # section number match
+        # section number boost
         for word in query_lower.split():
             if word.isdigit() and f"section {word}" in chunk_lower:
-                score += 30
+                score += 50
 
         keyword_scores.append(score)
 
     keyword_scores = np.array(keyword_scores)
 
-    # combine scores
     final_scores = sem_scores + keyword_scores
 
     top_idx = np.argsort(final_scores)[-top_k:][::-1]
+
+    best_score = final_scores[top_idx[0]]
+
+    # ---------------- CONFIDENCE FILTER ----------------
+    if best_score < 0.40:
+        return None
 
     context = "\n\n".join([chunks[i] for i in top_idx])
 
@@ -69,36 +70,35 @@ def get_context(query, top_k=5):
 # ---------------- AI ANSWER ENGINE ----------------
 def ai_answer(question, context):
 
-    prompt = f"""
-You are a SENIOR Pakistan Tax Law Expert and Legal Consultant.
+    # if no context found
+    if context is None:
+        return """
+📌 RESULT:
+No relevant section found in the uploaded tax law database.
 
-You must answer ONLY using the provided legal text.
+💡 TRY:
+- Use correct section number (e.g. Section 49)
+- Try full wording
+- Or check spelling
+"""
+
+    prompt = f"""
+You are a SENIOR Pakistan Tax Law Expert.
 
 RULES:
-- Do NOT give general answers
-- Always explain in structured legal format
-- Be detailed and precise
-- If section number is mentioned, focus on that section only
+- Use ONLY given legal text
+- Do NOT repeat questions
+- Do NOT say "not available in general law"
+- Give detailed structured explanation
 
-FORMAT YOUR ANSWER:
+FORMAT:
 
 📌 SECTION SUMMARY:
-Explain the section in simple legal meaning.
-
 📌 APPLICABILITY:
-Who does this law apply to.
-
 📌 CONDITIONS:
-All conditions mentioned in law.
-
 📌 EXCEPTIONS:
-Any exceptions or exclusions.
-
 📌 CONSEQUENCES:
-What happens if conditions are not met.
-
-📌 FINAL INTERPRETATION:
-Simple real-world explanation.
+📌 FINAL EXPLANATION:
 
 LEGAL TEXT:
 {context}
@@ -132,11 +132,11 @@ if st.button("Get Answer"):
         with st.spinner("Searching tax laws..."):
             context = get_context(question)
 
-        with st.spinner("Generating legal analysis..."):
+        with st.spinner("Generating answer..."):
             answer = ai_answer(question, context)
 
-        st.markdown("## 🧠 Legal AI Answer")
+        st.markdown("## 🧠 AI Answer")
         st.write(answer)
 
-        with st.expander("📚 Retrieved Legal Context"):
+        with st.expander("📚 Retrieved Context"):
             st.write(context)
