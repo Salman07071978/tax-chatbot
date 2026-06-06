@@ -65,13 +65,17 @@ RULES:
 - Be precise and detailed
 
 FORMAT:
+## Executive Summary
 
-📌 SECTION SUMMARY
-📌 APPLICABILITY
-📌 CONDITIONS
-📌 EXCEPTIONS
-📌 CONSEQUENCES
-📌 FINAL EXPLANATION
+## Applicability
+
+## Conditions
+
+## Exceptions
+
+## Consequences
+
+## Practical Interpretation
 
 LEGAL TEXT:
 {context}
