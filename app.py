@@ -3,9 +3,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 
-st.set_page_config(page_title="Pakistan Tax AI V2", layout="wide")
+st.set_page_config(page_title="Pakistan Tax AI V3", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (V2 - Smart)")
+st.title("🇵🇰 Pakistan Tax AI Assistant (V3 - Fixed Search + AI)")
 
 # ---------------- LOAD DATA ----------------
 @st.cache_resource
@@ -27,14 +27,40 @@ client = Groq(
     api_key=st.secrets["GROQ_API_KEY"]
 )
 
-# ---------------- RETRIEVAL (TOP 5) ----------------
+# ---------------- HYBRID SEARCH (FIXED) ----------------
 def get_context(query, top_k=5):
 
+    query_lower = query.lower()
+
+    # ---- semantic search ----
     q_vec = model.encode([query], normalize_embeddings=True)
+    sem_scores = np.dot(chunk_vectors, q_vec.T).flatten()
 
-    scores = np.dot(chunk_vectors, q_vec.T).flatten()
+    # ---- keyword boost (IMPORTANT FIX) ----
+    keyword_scores = []
 
-    top_idx = np.argsort(scores)[-top_k:][::-1]
+    for chunk in chunks:
+        score = 0
+        chunk_lower = chunk.lower()
+
+        # direct match boost
+        if query_lower in chunk_lower:
+            score += 15
+
+        # section number boost
+        words = query_lower.split()
+        for w in words:
+            if w.isdigit() and f"section {w}" in chunk_lower:
+                score += 25
+
+        keyword_scores.append(score)
+
+    keyword_scores = np.array(keyword_scores)
+
+    # ---- combine ----
+    final_scores = sem_scores + keyword_scores
+
+    top_idx = np.argsort(final_scores)[-top_k:][::-1]
 
     context = "\n\n".join([chunks[i] for i in top_idx])
 
@@ -44,16 +70,13 @@ def get_context(query, top_k=5):
 def ai_answer(question, context):
 
     prompt = f"""
-You are a Pakistan Tax Law Expert AI.
+You are a senior Pakistan Tax Law expert.
 
-Your job:
-- Read the legal text carefully
-- Explain in simple words
-- Give point-wise answer
-- Mention conditions clearly
-
-If answer is not in text, say:
-"Not found in provided tax law."
+Instructions:
+- Use ONLY provided legal text
+- Explain in simple and clear points
+- Mention conditions, exceptions, consequences
+- If answer not found, say: "Not clearly available in provided tax law"
 
 LEGAL TEXT:
 {context}
@@ -69,7 +92,7 @@ QUESTION:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
-            max_tokens=700
+            max_tokens=800
         )
 
         return response.choices[0].message.content
@@ -78,7 +101,7 @@ QUESTION:
         return f"AI Error: {str(e)}"
 
 # ---------------- UI ----------------
-question = st.text_area("Ask Income Tax or Sales Tax Question")
+question = st.text_input("Ask Income Tax or Sales Tax Question")
 
 if st.button("Get Answer"):
 
