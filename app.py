@@ -6,7 +6,7 @@ from groq import Groq
 # ---------------- APP CONFIG ----------------
 st.set_page_config(page_title="Pakistan Tax AI V4", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (V4 - FAST & STABLE)")
+st.title("Pakistan Tax AI Assistant")
 
 # ---------------- LOAD DATA (OPTIMIZED) ----------------
 @st.cache_resource
