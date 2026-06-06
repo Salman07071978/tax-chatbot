@@ -3,9 +3,10 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 
+# ---------------- APP CONFIG ----------------
 st.set_page_config(page_title="Pakistan Tax AI V3", layout="wide")
 
-st.title("🇵🇰 Pakistan Tax AI Assistant (V3 - Fixed Search + AI)")
+st.title("🇵🇰 Pakistan Tax AI Assistant (V3 - Professional Mode)")
 
 # ---------------- LOAD DATA ----------------
 @st.cache_resource
@@ -32,32 +33,31 @@ def get_context(query, top_k=5):
 
     query_lower = query.lower()
 
-    # ---- semantic search ----
+    # semantic search
     q_vec = model.encode([query], normalize_embeddings=True)
     sem_scores = np.dot(chunk_vectors, q_vec.T).flatten()
 
-    # ---- keyword boost (IMPORTANT FIX) ----
+    # keyword boost
     keyword_scores = []
 
     for chunk in chunks:
         score = 0
         chunk_lower = chunk.lower()
 
-        # direct match boost
+        # direct match
         if query_lower in chunk_lower:
-            score += 15
+            score += 20
 
-        # section number boost
-        words = query_lower.split()
-        for w in words:
-            if w.isdigit() and f"section {w}" in chunk_lower:
-                score += 25
+        # section number match
+        for word in query_lower.split():
+            if word.isdigit() and f"section {word}" in chunk_lower:
+                score += 30
 
         keyword_scores.append(score)
 
     keyword_scores = np.array(keyword_scores)
 
-    # ---- combine ----
+    # combine scores
     final_scores = sem_scores + keyword_scores
 
     top_idx = np.argsort(final_scores)[-top_k:][::-1]
@@ -66,17 +66,39 @@ def get_context(query, top_k=5):
 
     return context
 
-# ---------------- AI ANSWER ----------------
+# ---------------- AI ANSWER ENGINE ----------------
 def ai_answer(question, context):
 
     prompt = f"""
-You are a senior Pakistan Tax Law expert.
+You are a SENIOR Pakistan Tax Law Expert and Legal Consultant.
 
-Instructions:
-- Use ONLY provided legal text
-- Explain in simple and clear points
-- Mention conditions, exceptions, consequences
-- If answer not found, say: "Not clearly available in provided tax law"
+You must answer ONLY using the provided legal text.
+
+RULES:
+- Do NOT give general answers
+- Always explain in structured legal format
+- Be detailed and precise
+- If section number is mentioned, focus on that section only
+
+FORMAT YOUR ANSWER:
+
+📌 SECTION SUMMARY:
+Explain the section in simple legal meaning.
+
+📌 APPLICABILITY:
+Who does this law apply to.
+
+📌 CONDITIONS:
+All conditions mentioned in law.
+
+📌 EXCEPTIONS:
+Any exceptions or exclusions.
+
+📌 CONSEQUENCES:
+What happens if conditions are not met.
+
+📌 FINAL INTERPRETATION:
+Simple real-world explanation.
 
 LEGAL TEXT:
 {context}
@@ -91,8 +113,8 @@ QUESTION:
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            max_tokens=800
+            temperature=0.1,
+            max_tokens=900
         )
 
         return response.choices[0].message.content
@@ -107,13 +129,13 @@ if st.button("Get Answer"):
 
     if question.strip():
 
-        with st.spinner("Searching tax law..."):
+        with st.spinner("Searching tax laws..."):
             context = get_context(question)
 
-        with st.spinner("Generating AI answer..."):
+        with st.spinner("Generating legal analysis..."):
             answer = ai_answer(question, context)
 
-        st.markdown("## 🧠 AI Answer")
+        st.markdown("## 🧠 Legal AI Answer")
         st.write(answer)
 
         with st.expander("📚 Retrieved Legal Context"):
